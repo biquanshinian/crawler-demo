@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Crawler Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        success: '#00B42A',
+                        warning: '#FF7D00',
+                        danger: '#F53F3F',
+                        info: '#86909C',
+                        dark: '#1D2129',
+                        light: '#F2F3F5'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .transition-height {
+                transition: max-height 0.3s ease-in-out;
+            }
+            .shadow-card {
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            }
+            .animate-pulse-slow {
+                animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+            .gradient-bg {
+                background: linear-gradient(135deg, #165DFF 0%, #4080FF 100%);
+            }
+            .scale-in {
+                transform: scale(0.95);
+                opacity: 0;
+                transition: transform 0.3s ease, opacity 0.3s ease;
+            }
+            .scale-in.active {
+                transform: scale(1);
+                opacity: 1;
+            }
+            .slide-in {
+                transform: translateX(-10px);
+                opacity: 0;
+                transition: transform 0.3s ease, opacity 0.3s ease;
+            }
+            .slide-in.active {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            .fade-in {
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+            .fade-in.active {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 font-inter text-dark">
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 z-50 bg-white shadow-sm">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-crawler text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-dark">Web Crawler <span class="text-primary">Monitor</span></h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button class="text-info hover:text-primary transition-colors">
+                    <i class="fa fa-question-circle"></i>
+                </button>
+                <button class="text-info hover:text-primary transition-colors">
+                    <i class="fa fa-cog"></i>
+                </button>
+                <div class="relative">
+                    <img src="https://picsum.photos/id/1005/200/200" alt="User avatar"
+                        class="w-8 h-8 rounded-full object-cover">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- 左侧控制面板 -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- 爬虫状态卡片 -->
+            <div class="bg-white rounded-xl shadow-card p-6 scale-in active">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold">爬虫状态</h2>
+                    <div id="status-indicator" class="flex items-center">
+                        <span id="status-dot"
+                            class="w-3 h-3 rounded-full bg-warning mr-2 transition-all duration-300"></span>
+                        <span id="status-text" class="text-sm font-medium">准备中</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="bg-light rounded-lg p-3 fade-in">
+                        <p class="text-xs text-info mb-1">总爬取次数</p>
+                        <p id="total-crawls" class="text-xl font-bold">0</p>
+                    </div>
+                    <div class="bg-light rounded-lg p-3 fade-in" style="transition-delay: 0.1s">
+                        <p class="text-xs text-info mb-1">成功率</p>
+                        <p id="success-rate" class="text-xl font-bold">0%</p>
+                    </div>
+                    <div class="bg-light rounded-lg p-3 fade-in" style="transition-delay: 0.2s">
+                        <p class="text-xs text-info mb-1">平均响应时间</p>
+                        <p id="avg-response-time" class="text-xl font-bold">0ms</p>
+                    </div>
+                    <div class="bg-light rounded-lg p-3 fade-in" style="transition-delay: 0.3s">
+                        <p class="text-xs text-info mb-1">上次更新</p>
+                        <p id="last-updated" class="text-xl font-bold">从未</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <i class="fa fa-clock-o text-primary mr-2"></i>
+                        <span class="text-sm">爬取间隔: <span id="crawl-interval" class="font-medium">1分钟</span></span>
+                    </div>
+                    <button id="start-crawler"
+                        class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center">
+                        <i class="fa fa-play mr-2"></i> 启动
+                    </button>
+                </div>
+            </div>
+
+            <!-- URL输入表单 -->
+            <div class="bg-white rounded-xl shadow-card p-6 scale-in active" style="transition-delay: 0.1s">
+                <h2 class="text-lg font-semibold mb-4">目标URL</h2>
+                <div class="flex flex-col space-y-4">
+                    <div class="relative">
+                        <input type="url" id="target-url" placeholder="https://example.com"
+                            class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all">
+                        <button id="test-url"
+                            class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-light text-dark rounded-lg hover:bg-gray-200 transition-colors text-sm">
+                            <i class="fa fa-external-link mr-1"></i> 测试
+                        </button>
+                    </div>
+                    <button id="submit-url"
+                        class="px-4 py-3 gradient-bg text-white rounded-lg hover:opacity-90 transition-all flex items-center justify-center">
+                        <i class="fa fa-link mr-2"></i> 提交URL
+                    </button>
+                </div>
+            </div>
+
+            <!-- XPath选择器管理 -->
+            <div class="bg-white rounded-xl shadow-card p-6 scale-in active" style="transition-delay: 0.2s">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold">XPath选择器</h2>
+                    <button id="clear-xpaths" class="text-danger hover:text-danger/80 text-sm flex items-center">
+                        <i class="fa fa-trash mr-1"></i> 清空
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div id="xpath-form" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <input type="text" id="element-name" placeholder="元素名称"
+                            class="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all">
+                        <input type="text" id="xpath-selector" placeholder="XPath表达式"
+                            class="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all">
+                        <button id="add-xpath"
+                            class="px-3 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center">
+                            <i class="fa fa-plus mr-1"></i> 添加
+                        </button>
+                    </div>
+
+                    <div id="xpath-list" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                        <!-- XPath选择器列表将动态生成 -->
+                        <div class="text-center text-info text-sm py-4">
+                            <i class="fa fa-info-circle mr-1"></i> 添加XPath选择器以定义要抓取的元素
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 站点地图配置 -->
+            <div class="bg-white rounded-xl shadow-card p-6 scale-in active" style="transition-delay: 0.3s">
+                <h2 class="text-lg font-semibold mb-4">站点地图配置</h2>
+
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span>自动发现链接</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="auto-discovery" class="sr-only peer">
+                            <div
+                                class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span>最大爬取深度</span>
+                        <div class="flex items-center space-x-2">
+                            <button id="decrease-depth"
+                                class="w-6 h-6 bg-light rounded flex items-center justify-center hover:bg-gray-200 transition-colors">
+                                <i class="fa fa-minus text-xs"></i>
+                            </button>
+                            <span id="crawl-depth" class="font-medium">2</span>
+                            <button id="increase-depth"
+                                class="w-6 h-6 bg-light rounded flex items-center justify-center hover:bg-gray-200 transition-colors">
+                                <i class="fa fa-plus text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span>最大并发请求数</span>
+                        <div class="flex items-center space-x-2">
+                            <button id="decrease-concurrency"
+                                class="w-6 h-6 bg-light rounded flex items-center justify-center hover:bg-gray-200 transition-colors">
+                                <i class="fa fa-minus text-xs"></i>
+                            </button>
+                            <span id="concurrency-level" class="font-medium">3</span>
+                            <button id="increase-concurrency"
+                                class="w-6 h-6 bg-light rounded flex items-center justify-center hover:bg-gray-200 transition-colors">
+                                <i class="fa fa-plus text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button id="save-configuration"
+                        class="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center mt-2">
+                        <i class="fa fa-save mr-2"></i> 保存配置
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧数据展示区 -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- 爬取趋势图表 -->
+            <div class="bg-white rounded-xl shadow-card p-6 scale-in active" style="transition-delay: 0.4s">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold">爬取趋势</h2>
+                    <div class="flex items-center space-x-2">
+                        <button
+                            class="px-3 py-1 bg-light text-dark rounded-lg hover:bg-gray-200 transition-colors text-sm">日</button>
+                        <button
+                            class="px-3 py-1 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm">周</button>
+                        <button
+                            class="px-3 py-1 bg-light text-dark rounded-lg hover:bg-gray-200 transition-colors text-sm">月</button>
+                    </div>
+                </div>
+                <div class="h-64">
+                    <canvas id="crawl-trend-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- 最近爬取记录 -->
+            <div class="bg-white rounded-xl shadow-card p-6 scale-in active" style="transition-delay: 0.5s">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold">最近爬取记录</h2>
+                    <div class="relative">
+                        <input type="text" id="record-search" placeholder="搜索记录..."
+                            class="pl-8 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-sm">
+                        <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    ID</th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    URL</th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    状态</th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    响应时间</th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    数据量</th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="crawl-records" class="bg-white divide-y divide-gray-200">
+                            <!-- 爬取记录将动态生成 -->
+                            <tr>
+                                <td colspan="6" class="px-6 py-10 text-center text-gray-500">
+                                    <i class="fa fa-spinner fa-spin mr-2"></i> 加载爬取记录中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex items-center justify-between mt-4">
+                    <div class="text-sm text-gray-500">
+                        显示 <span id="records-showing">0</span> 条记录，共 <span id="total-records">0</span> 条
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <button id="prev-page"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled>
+                            <i class="fa fa-chevron-left text-xs"></i>
+                        </button>
+                        <button id="next-page"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled>
+                            <i class="fa fa-chevron-right text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 爬取结果详情模态框 -->
+            <div id="result-modal"
+                class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+                <div
+                    class="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col transform transition-transform duration-300 scale-95">
+                    <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+                        <h3 id="modal-title" class="text-lg font-semibold">爬取结果详情</h3>
+                        <button id="close-modal" class="text-gray-500 hover:text-gray-700">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </div>
+                    <div id="modal-content" class="flex-1 overflow-y-auto p-6">
+                        <!-- 模态框内容将动态生成 -->
+                        <div class="text-center py-10 text-gray-500">
+                            <i class="fa fa-spinner fa-spin text-2xl mb-3"></i>
+                            <p>加载详情中...</p>
+                        </div>
+                    </div>
+                    <div class="p-4 border-t border-gray-200 bg-gray-50 flex justify-end">
+                        <button id="close-modal-btn"
+                            class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
+                            关闭
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据加载指示器 -->
+            <div id="loading-indicator"
+                class="fixed bottom-4 right-4 bg-primary text-white px-4 py-2 rounded-lg shadow-lg transform transition-all duration-300 translate-y-20 opacity-0 flex items-center">
+                <i class="fa fa-refresh fa-spin mr-2"></i>
+                <span id="loading-text">正在加载数据...</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-white border-t border-gray-200 mt-8">
+        <div class="container mx-auto px-4 py-6 text-center text-gray-500 text-sm">
+            <p>© 2025 Web Crawler Monitor. 保留所有权利。</p>
+        </div>
+    </footer>
+
+    <script>
+        // API配置
+        const API_BASE_URL = 'https://crawler-demo-production.up.railway.app'; // Railway FastAPI 地址
+
+        // 全局变量
+        let xpathItems = [];
+        let crawlRecords = [];
+        let currentPage = 1;
+        const recordsPerPage = 5;
+        let chartInstance = null;
+        let dataPollingInterval = null;
+        let isLoading = false;
+
+        // DOM元素
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const totalCrawls = document.getElementById('total-crawls');
+        const successRate = document.getElementById('success-rate');
+        const avgResponseTime = document.getElementById('avg-response-time');
+        const lastUpdated = document.getElementById('last-updated');
+        const startCrawler = document.getElementById('start-crawler');
+        const targetUrl = document.getElementById('target-url');
+        const testUrl = document.getElementById('test-url');
+        const submitUrl = document.getElementById('submit-url');
+        const elementName = document.getElementById('element-name');
+        const xpathSelector = document.getElementById('xpath-selector');
+        const addXpath = document.getElementById('add-xpath');
+        const xpathList = document.getElementById('xpath-list');
+        const clearXpaths = document.getElementById('clear-xpaths');
+        const autoDiscovery = document.getElementById('auto-discovery');
+        const decreaseDepth = document.getElementById('decrease-depth');
+        const crawlDepth = document.getElementById('crawl-depth');
+        const increaseDepth = document.getElementById('increase-depth');
+        const decreaseConcurrency = document.getElementById('decrease-concurrency');
+        const concurrencyLevel = document.getElementById('concurrency-level');
+        const increaseConcurrency = document.getElementById('increase-concurrency');
+        const saveConfiguration = document.getElementById('save-configuration');
+        const crawlRecordsTable = document.getElementById('crawl-records');
+        const recordsShowing = document.getElementById('records-showing');
+        const totalRecords = document.getElementById('total-records');
+        const prevPage = document.getElementById('prev-page');
+        const nextPage = document.getElementById('next-page');
+        const recordSearch = document.getElementById('record-search');
+        const resultModal = document.getElementById('result-modal');
+        const closeModal = document.getElementById('close-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const modalTitle = document.getElementById('modal-title');
+        const modalContent = document.getElementById('modal-content');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const loadingText = document.getElementById('loading-text');
+
+        // 显示加载指示器
+        function showLoading(text = '正在加载数据...') {
+            isLoading = true;
+            loadingText.textContent = text;
+            loadingIndicator.classList.remove('translate-y-20', 'opacity-0');
+            loadingIndicator.classList.add('translate-y-0', 'opacity-100');
+        }
+
+        // 隐藏加载指示器
+        function hideLoading() {
+            isLoading = false;
+            loadingIndicator.classList.remove('translate-y-0', 'opacity-100');
+            loadingIndicator.classList.add('translate-y-20', 'opacity-0');
+        }
+
+        // 初始化图表
+        function initChart() {
+            const ctx = document.getElementById('crawl-trend-chart').getContext('2d');
+
+            // 销毁已存在的图表实例
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            // 创建新图表
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+                    datasets: [{
+                        label: '成功爬取',
+                        data: [12, 19, 15, 20, 18, 25, 30],
+                        borderColor: '#00B42A',
+                        backgroundColor: 'rgba(0, 180, 42, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: '失败爬取',
+                        data: [3, 5, 2, 6, 4, 3, 2],
+                        borderColor: '#F53F3F',
+                        backgroundColor: 'rgba(245, 63, 63, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                drawBorder: false
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 更新爬虫状态
+        function updateCrawlerStatus(status) {
+            // 添加动画效果
+            totalCrawls.classList.add('animate-pulse');
+            successRate.classList.add('animate-pulse');
+            avgResponseTime.classList.add('animate-pulse');
+            lastUpdated.classList.add('animate-pulse');
+
+            // 更新状态指示器
+            if (status.lastError) {
+                statusDot.className = 'w-3 h-3 rounded-full bg-danger mr-2 transition-all duration-300';
+                statusText.textContent = '错误';
+                statusText.className = 'text-sm font-medium text-danger';
+            } else if (status.totalCrawls === 0) {
+                statusDot.className = 'w-3 h-3 rounded-full bg-warning mr-2 transition-all duration-300';
+                statusText.textContent = '准备中';
+                statusText.className = 'text-sm font-medium text-warning';
+            } else {
+                statusDot.className = 'w-3 h-3 rounded-full bg-success mr-2 transition-all duration-300';
+                statusText.textContent = '运行中';
+                statusText.className = 'text-sm font-medium text-success';
+            }
+
+            // 更新统计信息
+            totalCrawls.textContent = status.totalCrawls;
+            successRate.textContent = `${Math.round((status.successCount / status.totalCrawls) * 100)}%`;
+            avgResponseTime.textContent = `${Math.round(status.avgResponseTime)}ms`;
+
+            // 格式化上次更新时间
+            const date = new Date(status.lastUpdated);
+            lastUpdated.textContent = date.toLocaleString();
+
+            // 移除动画效果
+            setTimeout(() => {
+                totalCrawls.classList.remove('animate-pulse');
+                successRate.classList.remove('animate-pulse');
+                avgResponseTime.classList.remove('animate-pulse');
+                lastUpdated.classList.remove('animate-pulse');
+            }, 1000);
+        }
+
+        // 添加XPath选择器
+        function addXPathItem() {
+            const name = elementName.value.trim();
+            const xpath = xpathSelector.value.trim();
+
+            if (!name || !xpath) {
+                showNotification('请输入元素名称和XPath选择器', 'warning');
+                return;
+            }
+
+            // 检查是否已存在相同的XPath
+            const exists = xpathItems.some(item => item.xpath === xpath);
+            if (exists) {
+                showNotification('该XPath选择器已存在', 'warning');
+                return;
+            }
+
+            // 添加到列表
+            xpathItems.push({ name, xpath });
+
+            // 清空输入框
+            elementName.value = '';
+            xpathSelector.value = '';
+
+            // 更新列表显示
+            renderXPathList();
+
+            showNotification('XPath选择器已添加', 'success');
+        }
+
+        // 渲染XPath选择器列表
+        function renderXPathList() {
+            if (xpathItems.length === 0) {
+                xpathList.innerHTML = `
+                    <div class="text-center text-info text-sm py-4">
+                        <i class="fa fa-info-circle mr-1"></i> 添加XPath选择器以定义要抓取的元素
+                    </div>
+                `;
+                return;
+            }
+
+            xpathList.innerHTML = '';
+            xpathItems.forEach((item, index) => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'flex items-center justify-between p-3 bg-light rounded-lg hover:bg-gray-100 transition-colors slide-in';
+                itemElement.style.transitionDelay = `${index * 0.05}s`;
+                itemElement.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-medium">${item.name}</span>
+                        <span class="text-xs text-info truncate max-w-xs">${item.xpath}</span>
+                    </div>
+                    <button class="delete-xpath text-danger hover:text-danger/80" data-index="${index}">
+                        <i class="fa fa-times"></i>
+                    </button>
+                `;
+                xpathList.appendChild(itemElement);
+
+                // 触发动画
+                setTimeout(() => {
+                    itemElement.classList.add('active');
+                }, 10);
+            });
+
+            // 添加删除事件监听
+            document.querySelectorAll('.delete-xpath').forEach(button => {
+                button.addEventListener('click', function () {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    const deletedItem = xpathItems.splice(index, 1)[0];
+
+                    // 移除元素的动画
+                    const itemElement = this.closest('.slide-in');
+                    itemElement.classList.remove('active');
+                    itemElement.classList.add('opacity-0', 'translate-x-4');
+
+                    // 重新渲染列表
+                    setTimeout(() => {
+                        renderXPathList();
+                        showNotification(`已删除XPath选择器: ${deletedItem.name}`, 'info');
+                    }, 300);
+                });
+            });
+        }
+
+        // 渲染爬取记录
+        function renderCrawlRecords() {
+            if (crawlRecords.length === 0) {
+                crawlRecordsTable.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-gray-500">
+                            暂无爬取记录
+                        </td>
+                    </tr>
+                `;
+                recordsShowing.textContent = '0';
+                totalRecords.textContent = '0';
+                prevPage.disabled = true;
+                nextPage.disabled = true;
+                return;
+            }
+
+            // 计算分页
+            const totalPages = Math.ceil(crawlRecords.length / recordsPerPage);
+            const startIndex = (currentPage - 1) * recordsPerPage;
+            const endIndex = Math.min(startIndex + recordsPerPage, crawlRecords.length);
+            const currentRecords = crawlRecords.slice(startIndex, endIndex);
+
+            // 更新分页信息
+            recordsShowing.textContent = currentRecords.length;
+            totalRecords.textContent = crawlRecords.length;
+
+            // 更新分页按钮状态
+            prevPage.disabled = currentPage === 1;
+            nextPage.disabled = currentPage === totalPages;
+
+            // 渲染记录
+            crawlRecordsTable.innerHTML = '';
+            currentRecords.forEach((record, index) => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition-colors slide-in';
+                row.style.transitionDelay = `${index * 0.05}s`;
+
+                // 确定状态样式
+                const statusClass = record.success ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger';
+                const statusIcon = record.success ? 'fa-check-circle' : 'fa-times-circle';
+
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${record.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900 truncate max-w-xs">${record.url}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                            <i class="fa ${statusIcon} mr-1"></i> ${record.success ? '成功' : '失败'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${Math.round(record.duration)}ms</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatBytes(record.data_size)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-primary hover:text-primary/80 cursor-pointer view-record" data-id="${record.id}">
+                        <i class="fa fa-eye mr-1"></i> 查看详情
+                    </td>
+                `;
+
+                crawlRecordsTable.appendChild(row);
+
+                // 触发动画
+                setTimeout(() => {
+                    row.classList.add('active');
+                }, 10);
+            });
+
+            // 添加查看详情事件监听
+            document.querySelectorAll('.view-record').forEach(button => {
+                button.addEventListener('click', function () {
+                    const id = this.getAttribute('data-id');
+                    showRecordDetails(id);
+                });
+            });
+        }
+
+        // 显示记录详情
+        function showRecordDetails(id) {
+            showLoading('正在加载详情...');
+            fetch(`${API_BASE_URL}/results/${id}`)
+                .then(res => res.json())
+                .then(record => {
+                    hideLoading();
+                    // 设置模态框标题
+                    modalTitle.textContent = `爬取结果详情 - ${record.id || id}`;
+                    // 构建详情内容（复用原有代码）
+                    let detailsHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">`;
+                    detailsHTML += `<div class="bg-light rounded-lg p-4 fade-in"><p class="text-xs text-info mb-1">URL</p><p class="font-medium">${record.url}</p></div>`;
+                    detailsHTML += `<div class="bg-light rounded-lg p-4 fade-in" style="transition-delay: 0.1s"><p class="text-xs text-info mb-1">状态</p><p class="font-medium ${record.success ? 'text-success' : 'text-danger'}"><i class="fa ${record.success ? 'fa-check-circle' : 'fa-times-circle'} mr-1"></i> ${record.success ? '成功' : '失败'}</p></div>`;
+                    detailsHTML += `<div class="bg-light rounded-lg p-4 fade-in" style="transition-delay: 0.2s"><p class="text-xs text-info mb-1">时间戳</p><p class="font-medium">${new Date(record.timestamp).toLocaleString()}</p></div>`;
+                    detailsHTML += `<div class="bg-light rounded-lg p-4 fade-in" style="transition-delay: 0.3s"><p class="text-xs text-info mb-1">响应时间</p><p class="font-medium">${Math.round(record.duration)}ms</p></div>`;
+                    detailsHTML += `<div class="bg-light rounded-lg p-4 fade-in" style="transition-delay: 0.4s"><p class="text-xs text-info mb-1">数据大小</p><p class="font-medium">${formatBytes(record.data_size)}</p></div>`;
+                    detailsHTML += `<div class="bg-light rounded-lg p-4 fade-in" style="transition-delay: 0.5s"><p class="text-xs text-info mb-1">状态码</p><p class="font-medium">${record.status_code}</p></div>`;
+                    detailsHTML += `</div>`;
+                    if (!record.success && record.error) {
+                        detailsHTML += `<div class="bg-danger/10 border border-danger/20 rounded-lg p-4 mb-6 fade-in"><p class="text-xs text-info mb-1">错误信息</p><p class="font-medium text-danger">${record.error}</p></div>`;
+                    }
+                    if (record.result && Object.keys(record.result).length > 0) {
+                        detailsHTML += `<div class="mb-6 fade-in"><h4 class="font-medium mb-3">爬取结果</h4><div class="bg-light rounded-lg p-4">`;
+                        let i = 0;
+                        for (const [key, value] of Object.entries(record.result)) {
+                            detailsHTML += `<div class="mb-3 pb-3 border-b border-gray-200 last:border-0 last:mb-0 last:pb-0 fade-in" style="transition-delay: ${0.1 + i * 0.05}s"><p class="text-xs text-info mb-1">${key}</p><pre class="font-medium text-sm whitespace-pre-wrap">${typeof value === 'object' ? JSON.stringify(value, null, 2) : value}</pre></div>`;
+                            i++;
+                        }
+                        detailsHTML += `</div></div>`;
+                    }
+                    modalContent.innerHTML = detailsHTML;
+                    setTimeout(() => {
+                        document.querySelectorAll('#modal-content .fade-in').forEach((el, index) => {
+                            setTimeout(() => {
+                                el.classList.add('active');
+                            }, index * 50);
+                        });
+                    }, 10);
+                    resultModal.classList.remove('opacity-0', 'pointer-events-none');
+                    resultModal.querySelector('div').classList.remove('scale-95');
+                    resultModal.querySelector('div').classList.add('scale-100');
+                })
+                .catch(err => {
+                    hideLoading();
+                    showNotification('加载详情失败: ' + err, 'error');
+                });
+        }
+
+        // 格式化字节数
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            // 创建通知元素
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg transform transition-all duration-500 translate-x-full z-50 flex items-center`;
+
+            // 设置通知类型样式
+            if (type === 'success') {
+                notification.classList.add('bg-success', 'text-white');
+                notification.innerHTML = `<i class="fa fa-check-circle mr-2"></i> ${message}`;
+            } else if (type === 'error') {
+                notification.classList.add('bg-danger', 'text-white');
+                notification.innerHTML = `<i class="fa fa-exclamation-circle mr-2"></i> ${message}`;
+            } else if (type === 'warning') {
+                notification.classList.add('bg-warning', 'text-white');
+                notification.innerHTML = `<i class="fa fa-exclamation-triangle mr-2"></i> ${message}`;
+            } else {
+                notification.classList.add('bg-primary', 'text-white');
+                notification.innerHTML = `<i class="fa fa-info-circle mr-2"></i> ${message}`;
+            }
+
+            // 添加到页面
+            document.body.appendChild(notification);
+
+            // 显示通知
+            setTimeout(() => {
+                notification.classList.remove('translate-x-full');
+                notification.classList.add('translate-x-0');
+            }, 10);
+
+            // 自动关闭
+            setTimeout(() => {
+                notification.classList.remove('translate-x-0');
+                notification.classList.add('translate-x-full');
+
+                // 移除元素
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 500);
+            }, 3000);
+        }
+
+        // 初始化数据轮询
+        function initDataPolling() {
+            // 先清除已有的轮询
+            if (dataPollingInterval) {
+                clearInterval(dataPollingInterval);
+            }
+
+            // 立即获取一次数据
+            fetchData();
+
+            // 设置轮询，每10秒获取一次数据
+            dataPollingInterval = setInterval(fetchData, 10000);
+        }
+
+        // 获取数据
+        function fetchData() {
+            showLoading('正在获取爬虫状态...');
+            // 获取爬虫状态
+            fetch(`${API_BASE_URL}/status`)
+                .then(res => res.json())
+                .then(status => {
+                    // 兼容原有字段
+                    updateCrawlerStatus({
+                        totalCrawls: status.total_crawls || 0,
+                        successCount: status.success_rate ? Math.round(status.total_crawls * status.success_rate / 100) : 0,
+                        avgResponseTime: status.avg_response_time || 0,
+                        lastUpdated: Date.now(), // 可用status.recent_results[0]?.timestamp
+                        lastError: null
+                    });
+                    // 获取爬取记录
+                    return fetch(`${API_BASE_URL}/results?limit=20&page=1`);
+                })
+                .then(res => res.json())
+                .then(records => {
+                    crawlRecords = Array.isArray(records) ? records : (records.results || []);
+                    renderCrawlRecords();
+                    hideLoading();
+                })
+                .catch(err => {
+                    hideLoading();
+                    showNotification('获取数据失败: ' + err, 'error');
+                });
+        }
+
+        // 初始化事件监听
+        function initEventListeners() {
+            // 添加XPath选择器
+            addXpath.addEventListener('click', addXPathItem);
+
+            // 清空XPath选择器
+            clearXpaths.addEventListener('click', function () {
+                if (xpathItems.length === 0) {
+                    showNotification('没有XPath选择器可清空', 'info');
+                    return;
+                }
+
+                xpathItems = [];
+                renderXPathList();
+                showNotification('已清空所有XPath选择器', 'info');
+            });
+
+            // 调整爬取深度
+            decreaseDepth.addEventListener('click', function () {
+                const current = parseInt(crawlDepth.textContent);
+                if (current > 1) {
+                    crawlDepth.textContent = current - 1;
+                }
+            });
+
+            increaseDepth.addEventListener('click', function () {
+                const current = parseInt(crawlDepth.textContent);
+                if (current < 10) {
+                    crawlDepth.textContent = current + 1;
+                }
+            });
+
+            // 调整并发级别
+            decreaseConcurrency.addEventListener('click', function () {
+                const current = parseInt(concurrencyLevel.textContent);
+                if (current > 1) {
+                    concurrencyLevel.textContent = current - 1;
+                }
+            });
+
+            increaseConcurrency.addEventListener('click', function () {
+                const current = parseInt(concurrencyLevel.textContent);
+                if (current < 10) {
+                    concurrencyLevel.textContent = current + 1;
+                }
+            });
+
+            // 保存配置
+            saveConfiguration.addEventListener('click', function () {
+                showLoading('正在保存配置...');
+
+                // 模拟保存配置
+                setTimeout(() => {
+                    hideLoading();
+                    showNotification('配置已保存', 'success');
+                }, 800);
+            });
+
+            // 测试URL
+            testUrl.addEventListener('click', function () {
+                const url = targetUrl.value.trim();
+                if (!url) {
+                    showNotification('请输入URL', 'warning');
+                    return;
+                }
+
+                showLoading(`正在测试URL: ${url}...`);
+
+                // 模拟测试URL
+                setTimeout(() => {
+                    hideLoading();
+                    showNotification(`URL ${url} 测试成功`, 'success');
+                }, 1500);
+            });
+
+            // 提交URL/启动爬虫
+            submitUrl.addEventListener('click', function () {
+                const url = targetUrl.value.trim();
+                if (!url) {
+                    showNotification('请输入URL', 'warning');
+                    return;
+                }
+                showLoading(`正在提交URL: ${url}...`);
+                // 构造参数
+                const config = {
+                    target_url: url,
+                    xpath_selectors: xpathItems,
+                    auto_discovery: autoDiscovery.checked,
+                    max_depth: parseInt(crawlDepth.textContent),
+                    concurrency: parseInt(concurrencyLevel.textContent)
+                };
+                fetch(`${API_BASE_URL}/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        hideLoading();
+                        showNotification('已提交URL ' + url + ' 进行爬取', 'success');
+                    })
+                    .catch(err => {
+                        hideLoading();
+                        showNotification('提交失败: ' + err, 'error');
+                    });
+            });
+
+            // 启动爬虫按钮同样触发submitUrl逻辑
+            startCrawler.addEventListener('click', function () {
+                submitUrl.click();
+            });
+
+            // 分页控制
+            prevPage.addEventListener('click', function () {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderCrawlRecords();
+
+                    // 平滑滚动到顶部
+                    window.scrollTo({
+                        top: crawlRecordsTable.offsetTop - 100,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+
+            nextPage.addEventListener('click', function () {
+                const totalPages = Math.ceil(crawlRecords.length / recordsPerPage);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderCrawlRecords();
+
+                    // 平滑滚动到顶部
+                    window.scrollTo({
+                        top: crawlRecordsTable.offsetTop - 100,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+
+            // 关闭模态框
+            closeModal.addEventListener('click', function () {
+                resultModal.classList.add('opacity-0', 'pointer-events-none');
+                resultModal.querySelector('div').classList.remove('scale-100');
+                resultModal.querySelector('div').classList.add('scale-95');
+            });
+
+            closeModalBtn.addEventListener('click', function () {
+                resultModal.classList.add('opacity-0', 'pointer-events-none');
+                resultModal.querySelector('div').classList.remove('scale-100');
+                resultModal.querySelector('div').classList.add('scale-95');
+            });
+
+            // 点击模态框背景关闭
+            resultModal.addEventListener('click', function (e) {
+                if (e.target === resultModal) {
+                    resultModal.classList.add('opacity-0', 'pointer-events-none');
+                    resultModal.querySelector('div').classList.remove('scale-100');
+                    resultModal.querySelector('div').classList.add('scale-95');
+                }
+            });
+
+            // 搜索记录
+            recordSearch.addEventListener('input', function () {
+                const searchTerm = this.value.toLowerCase().trim();
+
+                if (!searchTerm) {
+                    // 如果搜索框为空，显示所有记录
+                    renderCrawlRecords();
+                    return;
+                }
+
+                // 过滤记录
+                const filteredRecords = crawlRecords.filter(record => {
+                    return record.id.toLowerCase().includes(searchTerm) ||
+                        record.url.toLowerCase().includes(searchTerm) ||
+                        (record.result && JSON.stringify(record.result).toLowerCase().includes(searchTerm));
+                });
+
+                // 保存当前页
+                const currentPageBackup = currentPage;
+
+                // 重置到第一页
+                currentPage = 1;
+
+                // 临时替换记录，渲染过滤结果
+                const originalRecords = [...crawlRecords];
+                crawlRecords = filteredRecords;
+                renderCrawlRecords();
+
+                // 恢复原始记录
+                crawlRecords = originalRecords;
+
+                // 如果过滤结果为空，恢复当前页
+                if (filteredRecords.length === 0) {
+                    currentPage = currentPageBackup;
+                }
+            });
+        }
+
+        // 初始化页面
+        function initPage() {
+            // 初始化图表
+            initChart();
+
+            // 初始化事件监听
+            initEventListeners();
+
+            // 初始化数据轮询
+            initDataPolling();
+
+            // 触发入场动画
+            setTimeout(() => {
+                document.querySelectorAll('.scale-in').forEach((el, index) => {
+                    setTimeout(() => {
+                        el.classList.add('active');
+                    }, index * 100);
+                });
+            }, 100);
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+
+</html>
