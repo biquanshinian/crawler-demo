@@ -200,7 +200,8 @@ async def start_crawl(config: CrawlConfig, background_tasks: BackgroundTasks):
     """启动爬虫任务"""
     try:
         # 创建新任务ID
-        task_id = firestore.SERVER_TIMESTAMP.strftime("%Y%m%d%H%M%S")
+        import datetime
+        task_id = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
         
         # 添加到后台任务
         background_tasks.add_task(crawl_task, config, task_id)
