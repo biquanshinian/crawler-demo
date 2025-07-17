@@ -1,3 +1,8 @@
 firebase-admin
 aiohttp
 beautifulsoup4    
+firebase-admin
+aiohttp
+beautifulsoup4
+fastapi
+uvicorn
